@@ -5,6 +5,7 @@ import { Agent } from '../../agent';
 import type { Metric } from '../../eval';
 import type { IMastraLogger } from '../../logger';
 import type { Mastra } from '../../mastra';
+import type { OutputSchema } from '../../stream';
 import type { LegacyStep as Step } from './step';
 import type {
   StepAction,
@@ -252,8 +253,10 @@ export function agentToStep<
   TAgentId extends string = string,
   TTools extends ToolsInput = ToolsInput,
   TMetrics extends Record<string, Metric> = Record<string, Metric>,
+  OUTPUT extends OutputSchema = undefined,
+  FORMAT extends 'mastra' | 'aisdk' | undefined = undefined,
 >(
-  agent: Agent<TAgentId, TTools, TMetrics>,
+  agent: Agent<TAgentId, TTools, TMetrics, OUTPUT, FORMAT>,
   { mastra }: { mastra?: Mastra } = {},
 ): StepAction<TAgentId, z.ZodObject<{ prompt: z.ZodString }>, z.ZodObject<{ text: z.ZodString }>, any> {
   return {

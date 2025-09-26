@@ -1,4 +1,6 @@
 import type { InferUIMessageChunk, TextStreamPart, ToolSet, UIMessage } from 'ai-v5';
+import type { WorkflowStreamEvent } from '../../../../workflows/types';
+import { isWorkflowStreamEventType } from '../../../../workflows/types';
 
 export function getResponseUIMessageId({
   originalMessages,
@@ -42,6 +44,8 @@ export function convertFullStreamChunkToUIMessageStream<UI_MESSAGE extends UIMes
   responseMessageId?: string;
 }): InferUIMessageChunk<UI_MESSAGE> | undefined {
   const partType = part.type;
+
+  console.log('Converting part to UI message chunk:', partType);
 
   switch (partType) {
     case 'text-start': {
@@ -170,6 +174,19 @@ export function convertFullStreamChunkToUIMessageStream<UI_MESSAGE extends UIMes
     }
 
     case 'tool-output': {
+      const { type, ...rest } = part.output;
+      if (isWorkflowStreamEventType(type)) {
+        const newType: `data-${WorkflowStreamEvent['type']}` = `data-${type}`;
+        const chunk = {
+          type: newType,
+          data: {
+            id: part.toolCallId,
+            ...rest,
+          },
+        };
+        return chunk as InferUIMessageChunk<UI_MESSAGE>;
+      }
+
       return {
         id: part.toolCallId,
         ...part.output,

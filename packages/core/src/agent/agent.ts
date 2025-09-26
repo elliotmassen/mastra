@@ -8,26 +8,26 @@ import type { MastraPrimitives, MastraUnion } from '../action';
 import { AISpanType, getOrCreateSpan, getValidTraceId } from '../ai-tracing';
 import type { AISpan, TracingContext, TracingOptions, TracingProperties } from '../ai-tracing';
 import { MastraBase } from '../base';
-import { MastraError, ErrorDomain, ErrorCategory } from '../error';
+import { ErrorCategory, ErrorDomain, MastraError } from '../error';
 import type { Metric } from '../eval';
 import { AvailableHooks, executeHook } from '../hooks';
 import { MastraLLMV1 } from '../llm/model';
 import type {
-  GenerateObjectWithMessagesArgs,
-  GenerateTextWithMessagesArgs,
-  GenerateReturn,
   GenerateObjectResult,
+  GenerateObjectWithMessagesArgs,
+  GenerateReturn,
   GenerateTextResult,
-  StreamTextWithMessagesArgs,
+  GenerateTextWithMessagesArgs,
+  OriginalStreamObjectOnFinishEventArg,
+  OriginalStreamTextOnFinishEventArg,
   StreamObjectWithMessagesArgs,
   StreamReturn,
-  ToolSet,
-  OriginalStreamTextOnFinishEventArg,
-  OriginalStreamObjectOnFinishEventArg,
   StreamTextResult,
+  StreamTextWithMessagesArgs,
+  ToolSet,
 } from '../llm/model/base.types';
 import { MastraLLMVNext } from '../llm/model/model.loop';
-import type { TripwireProperties, MastraLanguageModel, MastraLanguageModelV2 } from '../llm/model/shared.types';
+import type { MastraLanguageModel, MastraLanguageModelV2, TripwireProperties } from '../llm/model/shared.types';
 import { RegisteredLogger } from '../logger';
 import { networkLoop } from '../loop/network';
 import type { Mastra } from '../mastra';
@@ -38,10 +38,10 @@ import { StructuredOutputProcessor } from '../processors/processors/structured-o
 import { ProcessorRunner } from '../processors/runner';
 import { RuntimeContext } from '../runtime-context';
 import type {
+  MastraScorer,
+  MastraScorers,
   ScorerRunInputForAgent,
   ScorerRunOutputForAgent,
-  MastraScorers,
-  MastraScorer,
   ScoringSamplingConfig,
 } from '../scores';
 import { runScorer } from '../scores/hooks';
@@ -54,29 +54,29 @@ import { Telemetry } from '../telemetry/telemetry';
 import { createTool } from '../tools';
 import type { CoreTool } from '../tools/types';
 import type { DynamicArgument } from '../types';
-import { makeCoreTool, createMastraProxy, ensureToolProperties } from '../utils';
 import type { ToolOptions } from '../utils';
+import { createMastraProxy, ensureToolProperties, makeCoreTool } from '../utils';
 import type { CompositeVoice } from '../voice';
 import { DefaultVoice } from '../voice';
 import type { Workflow } from '../workflows';
 import { agentToStep, LegacyStep as Step } from '../workflows/legacy';
 import type { AgentExecutionOptions, InnerAgentExecutionOptions, MultiPrimitiveExecutionOptions } from './agent.types';
-import { MessageList } from './message-list';
 import type { MessageInput, MessageListInput, UIMessageWithMetadata } from './message-list';
+import { MessageList } from './message-list';
 import { SaveQueueManager } from './save-queue';
 import { TripWire } from './trip-wire';
 import type {
   AgentConfig,
-  AgentGenerateOptions,
-  AgentStreamOptions,
-  ToolsetsInput,
-  ToolsInput,
-  AgentMemoryOption,
-  AgentModelManagerConfig,
   AgentCreateOptions,
   AgentExecuteOnFinishOptions,
+  AgentGenerateOptions,
   AgentInstructions,
+  AgentMemoryOption,
+  AgentModelManagerConfig,
+  AgentStreamOptions,
   DynamicAgentInstructions,
+  ToolsetsInput,
+  ToolsInput,
 } from './types';
 import { createPrepareStreamWorkflow } from './workflows/prepare-stream';
 
@@ -140,6 +140,8 @@ export class Agent<
   TAgentId extends string = string,
   TTools extends ToolsInput = ToolsInput,
   TMetrics extends Record<string, Metric> = Record<string, Metric>,
+  OUTPUT extends OutputSchema = undefined,
+  FORMAT extends 'mastra' | 'aisdk' | undefined = undefined,
 > extends MastraBase {
   public id: TAgentId;
   public name: TAgentId;
@@ -159,7 +161,7 @@ export class Agent<
   #workflows?: DynamicArgument<Record<string, Workflow<any, any, any, any, any, any>>>;
   #defaultGenerateOptions: DynamicArgument<AgentGenerateOptions>;
   #defaultStreamOptions: DynamicArgument<AgentStreamOptions>;
-  #defaultVNextStreamOptions: DynamicArgument<AgentExecutionOptions<any>>;
+  #defaultVNextStreamOptions: DynamicArgument<AgentExecutionOptions<OUTPUT, FORMAT>>;
   #tools: DynamicArgument<TTools>;
   evals: TMetrics;
   #scorers: DynamicArgument<MastraScorers>;
@@ -172,7 +174,7 @@ export class Agent<
   // This flag is for agent network messages. We should change the agent network formatting and remove this flag after.
   private _agentNetworkAppend = false;
 
-  constructor(config: AgentConfig<TAgentId, TTools, TMetrics>) {
+  constructor(config: AgentConfig<TAgentId, TTools, TMetrics, OUTPUT, FORMAT>) {
     super({ component: RegisteredLogger.AGENT });
 
     this.name = config.name;

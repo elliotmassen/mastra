@@ -5,17 +5,17 @@ import type { AISpan, AISpanType, TracingContext, TracingOptions, TracingPolicy 
 import type { Metric } from '../eval';
 import type {
   CoreMessage,
-  DefaultLLMStreamOptions,
   DefaultLLMStreamObjectOptions,
+  DefaultLLMStreamOptions,
   DefaultLLMTextObjectOptions,
   DefaultLLMTextOptions,
   OutputType,
   SystemMessage,
 } from '../llm';
 import type {
+  StreamObjectOnFinishCallback,
   StreamTextOnFinishCallback,
   StreamTextOnStepFinishCallback,
-  StreamObjectOnFinishCallback,
 } from '../llm/model/base.types';
 import type { MastraLanguageModel } from '../llm/model/shared.types';
 import type { Mastra } from '../mastra';
@@ -36,8 +36,8 @@ import type { AgentExecutionOptions } from './agent.types';
 import type { MessageList } from './message-list/index';
 import type { SaveQueueManager } from './save-queue';
 
-export type { MastraMessageV2, MastraMessageContentV2, UIMessageWithMetadata, MessageList } from './message-list/index';
 export type { Message as AiMessageType } from 'ai';
+export type { MastraMessageContentV2, MastraMessageV2, MessageList, UIMessageWithMetadata } from './message-list/index';
 
 export type ToolsInput = Record<string, ToolAction<any, any, any> | VercelTool | VercelToolV5>;
 
@@ -72,6 +72,8 @@ export interface AgentConfig<
   TAgentId extends string = string,
   TTools extends ToolsInput = ToolsInput,
   TMetrics extends Record<string, Metric> = Record<string, Metric>,
+  OUTPUT extends OutputSchema = undefined,
+  FORMAT extends 'mastra' | 'aisdk' | undefined = undefined,
 > {
   id?: TAgentId;
   name: TAgentId;
@@ -89,7 +91,7 @@ export interface AgentConfig<
   workflows?: DynamicArgument<Record<string, Workflow<any, any, any, any, any, any>>>;
   defaultGenerateOptions?: DynamicArgument<AgentGenerateOptions>;
   defaultStreamOptions?: DynamicArgument<AgentStreamOptions>;
-  defaultVNextStreamOptions?: DynamicArgument<AgentExecutionOptions>;
+  defaultVNextStreamOptions?: DynamicArgument<AgentExecutionOptions<OUTPUT, FORMAT>>;
   mastra?: Mastra;
   agents?: DynamicArgument<Record<string, Agent>>;
   scorers?: DynamicArgument<MastraScorers>;

@@ -3,6 +3,7 @@ import type z from 'zod';
 import type { Run, Step } from '../workflows';
 import type { ChunkType } from './types';
 import { ChunkFrom } from './types';
+import { format } from 'path';
 
 export class MastraWorkflowStream<
   TInput extends z.ZodType<any>,

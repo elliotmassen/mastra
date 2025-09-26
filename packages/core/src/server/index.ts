@@ -1,12 +1,12 @@
 import type { Context, Handler, MiddlewareHandler } from 'hono';
 import type { DescribeRouteOptions } from 'hono-openapi';
-import { MastraError, ErrorDomain, ErrorCategory } from '../error';
+import { ErrorCategory, ErrorDomain, MastraError } from '../error';
 import type { Mastra } from '../mastra';
 import type { ApiRoute, MastraAuthConfig, Methods } from './types';
 
-export type { MastraAuthConfig, ContextWithMastra, ApiRoute } from './types';
 export { MastraAuthProvider } from './auth';
 export type { MastraAuthProviderOptions } from './auth';
+export type { ApiRoute, ContextWithMastra, MastraAuthConfig } from './types';
 
 // Helper type for inferring parameters from a path
 // Thank you Claude!
@@ -75,6 +75,11 @@ function validateOptions<P extends string>(
       category: ErrorCategory.USER,
     });
   }
+}
+
+export function elliotTest(): string {
+  console.log('elliotTest');
+  return 'hello world';
 }
 
 export function registerApiRoute<P extends string>(
