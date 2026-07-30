@@ -26,16 +26,6 @@ Wait for the `Studio: http://localhost:4111` line.
 
 The version header/badge and dropdown should reflect a newly saved draft immediately, the same way the Publish flow already does elsewhere in the same UI.
 
-## Verifying without reloading the page
-
-The save did succeed server-side even though the UI hasn't caught up. Confirm with:
-
-```bash
-curl -s "http://localhost:4111/api/stored/agents/version-list-bug-agent/versions?requestContext=e30=" | python3 -m json.tool
-```
-
-This returns the newly created version right after step 2, before any page reload. The gap is purely a stale client-side query cache, not a server-side lag.
-
 ## Versions tested
 
 `mastra@1.20.3`, `@mastra/core@1.54.0`, `@mastra/editor@0.13.9`, the published `latest` tags at the time this repro was written. Also reconfirmed directly against the `mastra-ai/mastra` monorepo source at commit `bcfbbfdbe1`.
