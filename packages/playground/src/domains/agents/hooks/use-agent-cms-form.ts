@@ -307,13 +307,16 @@ export function useAgentCmsForm(options: UseAgentCmsFormOptions) {
         // Pass keepDefaultValues so currently rendered field state (e.g. open tabs,
         // focused inputs) is preserved — only the dirty flag is cleared.
         form.reset(values, { keepValues: true });
+        // The version list doesn't feed the form's dataSource, so it's always safe
+        // to refresh. Otherwise the version dropdown/badge (and the version id
+        // test-chat resolves against) go stale until the page is reloaded.
+        void queryClient.invalidateQueries({ queryKey: ['agent-versions', agentId] });
         // For code-mode overrides we intentionally skip stored-agent / agent query
         // invalidation: the dataSource reload would cascade through the
         // resetFormWithData effect and remount the System Prompt tab, which
         // is jarring. The filesystem write is authoritative for code mode and
         // the in-memory form already reflects the saved state.
         if (!isCodeAgentOverride) {
-          void queryClient.invalidateQueries({ queryKey: ['agent-versions', agentId] });
           void queryClient.invalidateQueries({ queryKey: ['stored-agent', agentId] });
           void queryClient.invalidateQueries({ queryKey: ['agent', agentId] });
         }
