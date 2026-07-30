@@ -29,16 +29,6 @@ A version only becomes testable once you've replaced it with something newer and
 
 Test chat should reflect whatever version the editor is showing, including the latest unpublished draft, without needing an extra save and a manual navigate-back.
 
-## Verifying without a model call
-
-If you'd rather not use a real API key, the mismatch is visible without any model involved. After publishing MARKER-A and saving MARKER-B as an unpublished draft (steps 2-3), hit the plain agent details endpoint:
-
-```bash
-curl -s "http://localhost:4111/api/stored/agents/version-bug-agent?requestContext=e30=" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['activeVersionId'], d['resolvedVersionId'], d['instructions'])"
-```
-
-`activeVersionId` and `resolvedVersionId` come back identical, and `instructions` shows MARKER-A, the published version, even though a newer MARKER-B draft exists. The same resolution path is what test chat hits when no explicit `agentVersionId` is sent, which is exactly what happens while viewing the latest version in the editor.
-
 ## Versions tested
 
 `mastra@1.20.3`, `@mastra/core@1.54.0`, `@mastra/editor@0.13.9`, the published `latest` tags at the time this repro was written. Also reconfirmed directly against the `mastra-ai/mastra` monorepo source at commit `bcfbbfdbe1`.
