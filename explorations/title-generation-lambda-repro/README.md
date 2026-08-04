@@ -48,7 +48,29 @@ pnpm turbo build --filter ./stores/libsql
 pnpm turbo build --filter ./packages/memory
 ```
 
-Then, from this directory:
+Then, from this directory, run both scenarios and get a pass/fail summary in
+one shot:
+
+```bash
+pnpm --filter @mastra/title-generation-lambda-repro run repro
+# or just: node repro.mjs
+```
+
+```
+[freeze] agent.generate() resolved. Response: "Here is my answer to your question."
+[warm] agent.generate() resolved. Response: "Here is my answer to your question."
+
+--- Result ---
+freeze run title: ""
+warm run title:   "Capital of France"
+
+BUG REPRODUCED: title generation is lost when the process exits right after generate() resolves.
+```
+
+Exits `0` when the bug reproduces (freeze run has no title, warm run does),
+`1` otherwise — useful for checking whether a fix landed.
+
+### Running scenarios individually
 
 ```bash
 pnpm --filter @mastra/title-generation-lambda-repro run freeze
