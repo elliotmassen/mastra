@@ -8,7 +8,12 @@
 //                 a container that either stays warm or the freeze happens
 //                 later than expected
 //
-// Usage: node run.mjs <freeze|warm> <db-file>
+// Usage: node run.mjs <freeze|warm> <db-file> [awaitGeneration]
+//
+// awaitGeneration ("true"/"false", default "false") sets memory options
+// generateTitle.awaitGeneration -- the new opt-in fix that makes
+// agent.generate()/stream() wait for title generation (and persistence)
+// to finish before resolving.
 
 import { Agent } from '@mastra/core/agent';
 import { Memory } from '@mastra/memory';
@@ -16,9 +21,10 @@ import { LibSQLStore } from '@mastra/libsql';
 
 const mode = process.argv[2];
 const dbFile = process.argv[3];
+const awaitGeneration = process.argv[4] === 'true';
 
 if (!mode || !dbFile) {
-  console.error('Usage: node run.mjs <freeze|warm> <db-file>');
+  console.error('Usage: node run.mjs <freeze|warm> <db-file> [awaitGeneration]');
   process.exit(1);
 }
 
@@ -68,9 +74,12 @@ const storage = new LibSQLStore({ id: 'repro-storage', url: `file:${dbFile}` });
 const memory = new Memory({
   storage,
   options: {
-    // 200ms delay: representative of a real title-generation LLM call,
-    // which always needs at least one network round trip.
-    generateTitle: { model: makeMockModel('Capital of France', { delayMs: 200 }) },
+    generateTitle: {
+      // 200ms delay: representative of a real title-generation LLM call,
+      // which always needs at least one network round trip.
+      model: makeMockModel('Capital of France', { delayMs: 200 }),
+      awaitGeneration,
+    },
   },
 });
 
@@ -88,7 +97,9 @@ const result = await agent.generate('What is the capital of France?', {
   memory: { thread: { id: threadId, title: '' }, resource: resourceId },
 });
 
-console.log(`[${mode}] agent.generate() resolved. Response: "${result.text}"`);
+console.log(
+  `[${mode}${awaitGeneration ? ', awaitGeneration=true' : ''}] agent.generate() resolved. Response: "${result.text}"`,
+);
 
 if (mode === 'freeze') {
   // Exactly what a frozen Lambda execution environment does: no more code

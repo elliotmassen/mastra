@@ -3349,3 +3349,99 @@ describe('onTitleGenerated callback', () => {
     await new Promise(resolve => setTimeout(resolve, 200));
   });
 });
+
+describe('generateTitle.awaitGeneration option', () => {
+  const agentModel = new MockLanguageModelV2({
+    doGenerate: async () => ({
+      rawCall: { rawPrompt: null, rawSettings: {} },
+      finishReason: 'stop' as const,
+      usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+      content: [{ type: 'text' as const, text: 'Agent response' }],
+      warnings: [],
+    }),
+  });
+
+  // Delayed title model: representative of a real LLM call, which always
+  // needs at least one network round trip and so can't resolve within the
+  // same microtask turn as the main response.
+  function createDelayedTitleModel(delayMs: number) {
+    return new MockLanguageModelV2({
+      doGenerate: async () => {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        return {
+          rawCall: { rawPrompt: null, rawSettings: {} },
+          finishReason: 'stop' as const,
+          usage: { inputTokens: 5, outputTokens: 10, totalTokens: 15 },
+          content: [{ type: 'text' as const, text: 'Generated Title' }],
+          warnings: [],
+        };
+      },
+    });
+  }
+
+  function createAgent(titleModel: MockLanguageModelV2, awaitGeneration: boolean | undefined) {
+    const mockMemory = new MockMemory();
+    mockMemory.getMergedThreadConfig = () => ({
+      generateTitle: { model: titleModel, awaitGeneration },
+    });
+
+    const agent = new Agent({
+      id: 'await-title-gen-test',
+      name: 'AwaitTitleGeneration Test',
+      instructions: 'test agent',
+      model: agentModel,
+      memory: mockMemory,
+    });
+
+    return { agent, mockMemory };
+  }
+
+  it('does not wait for title generation by default', async () => {
+    const titleModel = createDelayedTitleModel(50);
+    const { agent, mockMemory } = createAgent(titleModel, undefined);
+
+    await agent.generate('Hello', {
+      memory: { resource: 'user-1', thread: { id: 'thread-no-await', title: '' } },
+    });
+
+    // generate() resolved before the delayed title model could have finished.
+    const threadRightAfter = await mockMemory.getThreadById({ threadId: 'thread-no-await' });
+    expect(threadRightAfter?.title).toBe('');
+
+    // It does eventually land once the background promise is allowed to run.
+    await new Promise(resolve => setTimeout(resolve, 200));
+    const threadLater = await mockMemory.getThreadById({ threadId: 'thread-no-await' });
+    expect(threadLater?.title).toBe('Generated Title');
+  });
+
+  it('waits for title generation and persistence when awaitGeneration is true', async () => {
+    const titleModel = createDelayedTitleModel(50);
+    const { agent, mockMemory } = createAgent(titleModel, true);
+
+    await agent.generate('Hello', {
+      memory: { resource: 'user-1', thread: { id: 'thread-await', title: '' } },
+    });
+
+    // generate() only resolved after the title was generated and persisted.
+    const thread = await mockMemory.getThreadById({ threadId: 'thread-await' });
+    expect(thread?.title).toBe('Generated Title');
+  });
+
+  it('does not throw when title generation errors and awaitGeneration is true', async () => {
+    const failingTitleModel = new MockLanguageModelV2({
+      doGenerate: async () => {
+        throw new Error('title model failed');
+      },
+    });
+    const { agent, mockMemory } = createAgent(failingTitleModel, true);
+
+    await expect(
+      agent.generate('Hello', {
+        memory: { resource: 'user-1', thread: { id: 'thread-await-error', title: '' } },
+      }),
+    ).resolves.toBeDefined();
+
+    const thread = await mockMemory.getThreadById({ threadId: 'thread-await-error' });
+    expect(thread?.title).toBe('');
+  });
+});

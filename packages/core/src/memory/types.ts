@@ -1043,6 +1043,15 @@ type BaseMemoryConfig = {
          * Can be static or a function that receives request context for dynamic customization.
          */
         instructions?: DynamicArgument<string>;
+        /**
+         * Wait for title generation (and persistence) to finish before `generate()`/`stream()` resolves.
+         * By default title generation runs in the background after the response is returned, which can
+         * lose the title on runtimes that freeze the execution environment right after the response is
+         * sent (e.g. AWS Lambda, Vercel Functions). Set this to `true` on those runtimes.
+         *
+         * @default false
+         */
+        awaitGeneration?: boolean;
       };
 
   /**

@@ -7111,6 +7111,7 @@ export class Agent<
           model: titleModel,
           instructions: titleInstructions,
           minMessages,
+          awaitGeneration,
         } = this.resolveTitleGenerationConfig(
           config?.generateTitle as
             | boolean
@@ -7118,6 +7119,7 @@ export class Agent<
                 model?: DynamicArgument<MastraModelConfig, TRequestContext>;
                 instructions?: DynamicArgument<string>;
                 minMessages?: number;
+                awaitGeneration?: boolean;
               }
             | undefined,
         );
@@ -7130,7 +7132,7 @@ export class Agent<
           const userMessage = this.getMostRecentUserMessage(uiMessages);
 
           if (userMessage) {
-            void this.genTitle(
+            const titleGenerationPromise = this.genTitle(
               userMessage,
               requestContext,
               observabilityContext,
@@ -7155,6 +7157,16 @@ export class Agent<
               .catch(error => {
                 this.logger.error('Error persisting generated title:', error);
               });
+
+            if (awaitGeneration) {
+              // Serverless runtimes (AWS Lambda, Vercel Functions) can freeze the execution
+              // environment the instant the response is sent, so a detached promise here may
+              // never get another turn of the event loop. Awaiting it guarantees the title is
+              // generated and persisted before generate()/stream() resolves.
+              await titleGenerationPromise;
+            } else {
+              void titleGenerationPromise;
+            }
           }
         }
       } catch (e) {
@@ -9116,6 +9128,7 @@ export class Agent<
           model?: DynamicArgument<MastraModelConfig, TRequestContext>;
           instructions?: DynamicArgument<string>;
           minMessages?: number;
+          awaitGeneration?: boolean;
         }
       | undefined,
   ): {
@@ -9123,6 +9136,7 @@ export class Agent<
     model?: DynamicArgument<MastraModelConfig, TRequestContext>;
     instructions?: DynamicArgument<string>;
     minMessages?: number;
+    awaitGeneration?: boolean;
   } {
     if (typeof generateTitleConfig === 'boolean') {
       return { shouldGenerate: generateTitleConfig };
@@ -9134,6 +9148,7 @@ export class Agent<
         model: generateTitleConfig.model,
         instructions: generateTitleConfig.instructions,
         minMessages: generateTitleConfig.minMessages,
+        awaitGeneration: generateTitleConfig.awaitGeneration,
       };
     }
 

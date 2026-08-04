@@ -171,6 +171,7 @@ export interface AgentLegacyCapabilities {
           model?: DynamicArgument<MastraModelConfig, any>;
           instructions?: DynamicArgument<string>;
           minMessages?: number;
+          awaitGeneration?: boolean;
         }
       | undefined,
   ): {
@@ -178,6 +179,7 @@ export interface AgentLegacyCapabilities {
     model?: DynamicArgument<MastraModelConfig, any>;
     instructions?: DynamicArgument<string>;
     minMessages?: number;
+    awaitGeneration?: boolean;
   };
   /** Convert instructions to string */
   convertInstructionsToString(instructions: AgentInstructions): string;

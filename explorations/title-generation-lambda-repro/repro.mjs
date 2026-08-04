@@ -1,6 +1,6 @@
-// Single entry point: runs both the "freeze" and "warm" scenarios back to
-// back and prints a clear pass/fail summary, instead of requiring four
-// separate manual commands.
+// Single entry point: runs the "freeze", "warm", and "freeze + fix" scenarios
+// back to back and prints a clear pass/fail summary, instead of requiring
+// several separate manual commands.
 
 import { execFileSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
@@ -18,9 +18,11 @@ async function readTitle(dbFile) {
   return thread?.title ?? null;
 }
 
-function runScenario(mode, dbFile) {
+function runScenario(mode, dbFile, awaitGeneration = false) {
   cleanDb(dbFile);
-  const output = execFileSync('node', ['run.mjs', mode, dbFile], { encoding: 'utf8' });
+  const args = ['run.mjs', mode, dbFile];
+  if (awaitGeneration) args.push('true');
+  const output = execFileSync('node', args, { encoding: 'utf8' });
   process.stdout.write(output);
 }
 
@@ -30,19 +32,31 @@ const freezeTitle = await readTitle('./freeze.db');
 runScenario('warm', './warm.db');
 const warmTitle = await readTitle('./warm.db');
 
+runScenario('freeze', './fixed.db', true);
+const fixedTitle = await readTitle('./fixed.db');
+
 console.log('\n--- Result ---');
-console.log(`freeze run title: ${JSON.stringify(freezeTitle)}`);
-console.log(`warm run title:   ${JSON.stringify(warmTitle)}`);
+console.log(`freeze (default) title:              ${JSON.stringify(freezeTitle)}`);
+console.log(`warm (default) title:                ${JSON.stringify(warmTitle)}`);
+console.log(`freeze + awaitGeneration:true title:  ${JSON.stringify(fixedTitle)}`);
 
-const reproduced = freezeTitle === '' && warmTitle === 'Capital of France';
+const bugReproduced = freezeTitle === '' && warmTitle === 'Capital of France';
+const fixVerified = fixedTitle === 'Capital of France';
 
-if (reproduced) {
+if (bugReproduced) {
   console.log('\nBUG REPRODUCED: title generation is lost when the process exits right after generate() resolves.');
 } else {
-  console.log('\nNOT REPRODUCED: freeze run persisted a title, or warm run did not -- behavior may have changed.');
+  console.log('\nBUG NOT REPRODUCED: freeze run persisted a title, or warm run did not -- behavior may have changed.');
+}
+
+if (fixVerified) {
+  console.log('FIX VERIFIED: with generateTitle.awaitGeneration: true, the title survives the same freeze.');
+} else {
+  console.log('FIX NOT VERIFIED: title was still lost even with awaitGeneration: true.');
 }
 
 cleanDb('./freeze.db');
 cleanDb('./warm.db');
+cleanDb('./fixed.db');
 
-process.exit(reproduced ? 0 : 1);
+process.exit(bugReproduced && fixVerified ? 0 : 1);
