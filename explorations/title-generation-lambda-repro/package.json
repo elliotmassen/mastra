@@ -1,0 +1,21 @@
+{
+  "name": "@mastra/title-generation-lambda-repro",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Reproduction: agent.generate()/stream() don't await title generation, so a serverless runtime that freezes the execution environment right after the response is sent can silently lose the generated title",
+  "type": "module",
+  "scripts": {
+    "freeze": "node run.mjs freeze ./freeze.db",
+    "warm": "node run.mjs warm ./warm.db",
+    "check:freeze": "node check.mjs ./freeze.db",
+    "check:warm": "node check.mjs ./warm.db"
+  },
+  "dependencies": {
+    "@mastra/core": "workspace:*",
+    "@mastra/libsql": "workspace:*",
+    "@mastra/memory": "workspace:*"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  }
+}
